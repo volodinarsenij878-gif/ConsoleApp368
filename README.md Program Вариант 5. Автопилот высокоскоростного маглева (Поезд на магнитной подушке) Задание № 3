@@ -3,30 +3,78 @@
     using System.Linq;
     using System.Text;
     using System.Threading.Tasks;
-
     namespace Program3
     {
     internal class Program
     {
         static void Main()
-        { }
-        public class MaglevControl
         {
-            public static void ForecastSpeedDrop(double currentSpeed, double airDensity, int seconds, out double newSpeed)
-            {
-                if (seconds <= 0)
-                {
-                    newSpeed = currentSpeed;
-                    return;
-                }
+            Console.WriteLine("=== Пункт 3: Рекурсивный прогноз падения скорости (аэродинамика) ===\n");
 
-                // Нелинейное падение скорости из-за аэродинамического сопротивления
-                double dragForce = currentSpeed * airDensity * 0.01; // Упрощённое моделирование
-                double newSpeedValue = currentSpeed - dragForce;
-                newSpeed = newSpeedValue;
+            double startSpeedKmh = 450.0;
+            double airDensity = 1.225;      // кг/м³ (нормальные условия)
+            int seconds = 10;                // прогнозируем на 10 секунд вперёд
 
-                ForecastSpeedDrop(newSpeed, airDensity, seconds - 1, out newSpeed);
-            }
+            double forecastSpeed = ForecastAeroDrag(startSpeedKmh, airDensity, seconds);
+
+            Console.WriteLine($"Начальная скорость: {startSpeedKmh:F1} км/ч");
+            Console.WriteLine($"Плотность воздуха: {airDensity:F3} кг/м³");
+            Console.WriteLine($"Период прогноза: {seconds} сек");
+            Console.WriteLine($"Прогноз скорости через {seconds} сек: {forecastSpeed:F1} км/ч\n");
+
+            // Для наглядности выведем по секундам (через отдельный рекурсивный обход)
+            Console.WriteLine("Посекундный прогноз затухания скорости:");
+            PrintSpeedPerSecond(startSpeedKmh, airDensity, 0, seconds);
+
+            Console.WriteLine("\nНажмите любую клавишу для выхода...");
+            Console.ReadKey();
+        }
+
+        /// <summary>
+        /// Рекурсивный расчёт скорости через N секунд под действием аэродинамического сопротивления.
+        /// </summary>
+        public static double ForecastAeroDrag(double currentSpeed, double airDensity, int seconds)
+        {
+            // Базовый случай рекурсии: 0 секунд — скорость не меняется
+            if (seconds <= 0 || currentSpeed <= 0)
+                return Math.Max(0.0, currentSpeed);
+
+            const double dragCoeff = 0.35;        // коэффициент лобового сопротивления
+            const double frontalAreaM2 = 12.0;   // площадь миделевого сечения, м²
+            const double massKg = 300_000.0;     // масса поезда, кг
+
+            // Переводим км/ч в м/с
+            double speedMs = currentSpeed / 3.6;
+
+            // Сила аэродинамического сопротивления: F = 0.5 * rho * v^2 * Cd * A
+            double dragForceNewtons = 0.5 * airDensity * speedMs * speedMs * dragCoeff * frontalAreaM2;
+
+            // Ускорение (замедление): a = F / m (м/с²)
+            double accelerationMs2 = dragForceNewtons / massKg;
+
+            // Изменение скорости за 1 секунду: dv = a * dt (м/с)
+            double deltaVms = accelerationMs2 * 1.0;
+
+            // Новая скорость в м/с, затем обратно в км/ч
+            double newSpeedMs = Math.Max(0.0, speedMs - deltaVms);
+            double newSpeedKmh = newSpeedMs * 3.6;
+
+            // Рекурсивный вызов для оставшихся секунд
+            return ForecastAeroDrag(newSpeedKmh, airDensity, seconds - 1);
+        }
+
+        /// <summary>
+        /// Вспомогательный рекурсивный метод для вывода скорости по секундам.
+        /// </summary>
+        private static void PrintSpeedPerSecond(double currentSpeed, double airDensity, int currentSecond, int totalSeconds)
+        {
+            if (currentSecond > totalSeconds)
+                return;
+
+            double speedAtThisSecond = ForecastAeroDrag(currentSpeed, airDensity, totalSeconds - currentSecond);
+            Console.WriteLine($"t = {currentSecond,2} сек: скорость = {speedAtThisSecond:F1} км/ч");
+
+            PrintSpeedPerSecond(currentSpeed, airDensity, currentSecond + 1, totalSeconds);
         }
     }
     }
